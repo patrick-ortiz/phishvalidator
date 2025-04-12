@@ -1,0 +1,35 @@
+# Bytecode & cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.env/
+venv/
+ENV/
+*.env
+
+# Databases
+*.db
+*.sqlite3
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# IDE config
+.vscode/
+.idea/
+
+# Selenium / Playwright artifacts (if used)
+playwright/.cache/
+screenshots/
+downloads/
+
+# Docker / Compose artifacts
+*.pid
+*.sock
+
