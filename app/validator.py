@@ -1,21 +1,30 @@
+
 import sqlite3
-import random
-import time
 import os
+from playwright.sync_api import sync_playwright
 
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__),"../creds.db"))
+DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "../creds.db"))
 
-def simulate_login(email, password):
-    """
-    Simulates a login attempt and returns a state.
-    This will later be replaced by Selenium/Playwright
-    """
-    print(f"[~] Simulating login for: {email}...")
-    time.sleep(1)
+def try_login(email, password):
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
 
-    status = random.choice(["Success", "Fail", "MFA"])
-    print(f"[+] Result: {status}")
-    return status
+        page.goto("https://the-internet.herokuapp.com/login")
+        page.fill("#username", email)
+        page.fill("#password", password)
+        page.click("button[type='submit']")
+        page.wait_for_timeout(1000)
+
+        content = page.content()
+        browser.close()
+
+        if "You logged into a secure area!" in content:
+            return "Success"
+        elif "Your password is invalid!" in content or "Your username is invalid" in content:
+            return "Fail"
+        else:
+            return "MFA"
 
 def run_validator():
     conn = sqlite3.connect(DB_PATH)
@@ -25,18 +34,22 @@ def run_validator():
     rows = cursor.fetchall()
 
     if not rows:
-        print("[i] THere are no pending credentials.")
+        print("[i] No pending credentials.")
         return
 
-    for row in rows:
-        cred_id, email, password = row
-        status = simulate_login(email, password)
-
+    for cred_id, email, password in rows:
+        print(f"[~] Validating {email}:{password}")
+        try:
+            status = try_login(email, password)
+        except Exception as e:
+            print(f"[!] Error during validation: {e}")
+            status = "Error"
         cursor.execute("UPDATE credentials SET status = ? WHERE id = ?", (status, cred_id))
         conn.commit()
 
     conn.close()
-    print ("[!] Validation completed.")
+    print("[✓] Validation complete.")
 
 if __name__ == "__main__":
     run_validator()
+

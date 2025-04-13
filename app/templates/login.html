@@ -42,9 +42,9 @@
 <body>
   <div class="login-box">
     <h2>Login</h2>
-    <form method="POST">
+    <form method="POST" action="{{ url_for('routes.login') }}">
       <label for="email">Email:</label>
-      <input type="email" name="email" required>
+      <input type="text" name="email" required>
 
       <label for="password">Password:</label>
       <input type="password" name="password" required>

