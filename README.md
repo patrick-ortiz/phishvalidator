@@ -155,3 +155,180 @@ proxy.query("DROP TABLE", "guest") # Bloqueado
 proxy.query("SELECT *", "admin")   # Permitido
 ```
 
+CATEGORIA: COMPORTAMIENTO
+
+Chain of Responsibility (validación / seguridad por capas)
+
+Idea: pasar la “solicitud de login” por una cadena: validar campos → rate limit → sanitizar → registrar intento.
+
+```python
+from dataclasses import dataclass
+from datetime import datetime
+import re
+
+@dataclass
+class LoginAttempt:
+    email: str
+    ip: str
+    user_agent: str
+    timestamp: str
+    status: str = "Pending"
+    reason: str = ""
+
+class Handler:
+    def __init__(self, next_handler=None):
+        self.next = next_handler
+
+    def handle(self, attempt: LoginAttempt) -> LoginAttempt:
+        if self.next:
+            return self.next.handle(attempt)
+        return attempt
+
+class EmailFormatHandler(Handler):
+    def handle(self, attempt: LoginAttempt) -> LoginAttempt:
+        if not attempt.email or not re.match(r"[^@]+@[^@]+\.[^@]+", attempt.email):
+            attempt.status = "Rejected"
+            attempt.reason = "Invalid email format"
+            return attempt
+        return super().handle(attempt)
+
+class BasicRateLimitHandler(Handler):
+    # Ejemplo simple: bloquea IPs “marcadas”. En prod usar redis/limiter real.
+    BLOCKED_IPS = {"127.0.0.2"}
+
+    def handle(self, attempt: LoginAttempt) -> LoginAttempt:
+        if attempt.ip in self.BLOCKED_IPS:
+            attempt.status = "Rejected"
+            attempt.reason = "Rate limited / blocked IP"
+            return attempt
+        return super().handle(attempt)
+
+class AuditStampHandler(Handler):
+    def handle(self, attempt: LoginAttempt) -> LoginAttempt:
+        attempt.timestamp = datetime.utcnow().isoformat()
+        attempt.status = "Logged"
+        return super().handle(attempt)
+
+# Uso:
+chain = EmailFormatHandler(BasicRateLimitHandler(AuditStampHandler()))
+```
+
+Command (acciones encapsuladas: guardar en DB, notificar, etc.)
+
+Idea: cada acción es un “comando” ejecutable: SaveAttemptCommand, NotifyAdminCommand.
+
+```python
+import sqlite3
+
+class Command:
+    def execute(self):
+        raise NotImplementedError
+
+class SaveAttemptCommand(Command):
+    def __init__(self, db_path: str, attempt):
+        self.db_path = db_path
+        self.attempt = attempt
+
+    def execute(self):
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO login_audit (email, ip, user_agent, timestamp, status, reason)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (self.attempt.email, self.attempt.ip, self.attempt.user_agent,
+              self.attempt.timestamp, self.attempt.status, self.attempt.reason))
+        conn.commit()
+        conn.close()
+
+class NotifyAdminCommand(Command):
+    def __init__(self, attempt):
+        self.attempt = attempt
+
+    def execute(self):
+        # Ejemplo: en prod sería email/Slack.
+        print(f"[ALERT] Login attempt: {self.attempt.email} from {self.attempt.ip} ({self.attempt.status})")
+
+class Invoker:
+    def __init__(self):
+        self.queue = []
+
+    def add(self, cmd: Command):
+        self.queue.append(cmd)
+
+    def run(self):
+        for cmd in self.queue:
+            cmd.execute()
+        self.queue.clear()
+
+```
+
+Iterator (recorrer registros del audit sin exponer detalles internos)
+
+Idea: un iterador para recorrer intentos en páginas (o por lote).
+
+```python
+class AuditLogIterator:
+    def __init__(self, db_path: str, batch_size: int = 50):
+        self.db_path = db_path
+        self.batch_size = batch_size
+        self.offset = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        conn = sqlite3.connect(self.db_path)
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT email, ip, user_agent, timestamp, status, reason
+            FROM login_audit
+            ORDER BY timestamp DESC
+            LIMIT ? OFFSET ?
+        """, (self.batch_size, self.offset))
+        rows = cur.fetchall()
+        conn.close()
+
+        if not rows:
+            raise StopIteration
+
+        self.offset += self.batch_size
+        return rows
+
+# Uso:
+# for batch in AuditLogIterator(DB_PATH, 20):
+#     for row in batch:
+#         print(row)
+
+```
+
+Mediator (coordinar componentes: form → validación → audit → UI)
+
+Idea: el “mediator” coordina sin que los componentes se conozcan entre sí.
+
+```python
+class LoginMediator:
+    def __init__(self, validator_chain, invoker, db_path):
+        self.validator_chain = validator_chain
+        self.invoker = invoker
+        self.db_path = db_path
+
+    def process_login_attempt(self, email, ip, user_agent):
+        attempt = LoginAttempt(email=email, ip=ip, user_agent=user_agent, timestamp="")
+        attempt = self.validator_chain.handle(attempt)
+
+        # Siempre registrar (incluso rechazados) para auditoría
+        self.invoker.add(SaveAttemptCommand(self.db_path, attempt))
+
+        # Notificar solo si es sospechoso/rechazado, por ejemplo
+        if attempt.status == "Rejected":
+            self.invoker.add(NotifyAdminCommand(attempt))
+
+        self.invoker.run()
+        return attempt
+
+```
+
+
+
+
+
