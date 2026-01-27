@@ -84,7 +84,73 @@ class Campana: # Composite (Grupo)
 lote = Campana()
 lote.agregar(Credencial("user1"))
 lote.validar()
+
 ```
+Decorator
+Definición: Asigna responsabilidades adicionales a un objeto o función dinámicamente, proporcionando una alternativa flexible a la herencia para extender la funcionalidad (como añadir logs o autenticación) sin modificar el código original.
+```python
+def log_decorator(func):
+    def wrapper(*args, **kwargs):
+        print(f"[LOG] Ejecutando: {func.__name__}")
+        return func(*args, **kwargs) # Ejecuta la original
+    return wrapper
 
+@log_decorator
+def lanzar_ataque(target):
+    print(f"Atacando a {target}")
 
+# Uso: Al llamar a la función, se ejecuta automáticamente el log extra
+lanzar_ataque("192.168.1.5")
+```
+Facade
+Definición: Proporciona una interfaz unificada y simplificada para un conjunto complejo de subsistemas (como base de datos, red y logs), ocultando la complejidad interna para que el cliente pueda usarlos fácilmente.
+```python
+class PhishingFacade:
+    def __init__(self):
+        self.db = DatabaseManager()
+        self.net = NetworkSender()
+        self.log = LoggerSystem()
 
+    def iniciar_operacion(self):
+        # Oculta la complejidad de coordinar 3 sistemas distintos
+        self.log.start()
+        self.db.connect()
+        self.net.send_payload()
+
+# Uso: El cliente solo llama a un método simple
+PhishingFacade().iniciar_operacion()
+```
+Flyweight
+Definición: Utiliza el compartimiento para soportar eficientemente grandes cantidades de objetos, extrayendo el estado común (intrínseco) en un solo objeto compartido para ahorrar memoria RAM, manteniendo separado solo el estado único (extrínseco).
+```python
+class PlantillaEmail: # Estado Intrínseco (Pesado/Compartido)
+    def __init__(self, html): self.html = html 
+class Envio: # Estado Extrínseco (Único)
+    def __init__(self, email, plantilla_compartida):
+        self.email = email
+        self.plantilla = plantilla_compartida
+plantilla_comun = PlantillaEmail("<h1>Hola...</h1>" * 1000)
+# Miles de envíos apuntan a la misma plantilla (Ahorro masivo de RAM)
+envios = [Envio(f"user{i}@test.com", plantilla_comun) for i in range(10000)]
+```
+Proxy
+Definición: Proporciona un sustituto o marcador de posición para controlar el acceso a otro objeto, permitiendo realizar operaciones de seguridad, validación o carga diferida antes de permitir que la solicitud llegue al objeto real.
+```python
+class RealDatabase:
+    def query(self, q): print(f"Ejecutando: {q}")
+
+class SecurityProxy:
+    def __init__(self): self.real_db = RealDatabase()
+
+    def query(self, q, user):
+        # El Proxy intercepta y verifica permisos antes de dejar pasar
+        if user == "admin":
+            self.real_db.query(q)
+        else:
+            print("¡Acceso Denegado!")
+
+# Uso:
+proxy = SecurityProxy()
+proxy.query("DROP TABLE", "guest") # Bloqueado
+proxy.query("SELECT *", "admin")   # Permitido
+```
