@@ -328,6 +328,269 @@ class LoginMediator:
 
 ```
 
+Memento
+
+Guarda y restaura el estado de un objeto sin exponer su implementación. Útil para “deshacer” o volver a un punto previo (por ejemplo, revertir el estado de un intento de login durante evaluación).
+
+```python
+from dataclasses import dataclass
+from copy import deepcopy
+
+@dataclass
+class LoginAttempt:
+    email: str
+    ip: str
+    user_agent: str
+    status: str = "Pending"
+    reason: str = ""
+
+class AttemptMemento:
+    def __init__(self, state: LoginAttempt):
+        self._state = deepcopy(state)
+
+    def get_state(self) -> LoginAttempt:
+        return deepcopy(self._state)
+
+class AttemptOriginator:
+    def __init__(self, attempt: LoginAttempt):
+        self.attempt = attempt
+
+    def save(self) -> AttemptMemento:
+        return AttemptMemento(self.attempt)
+
+    def restore(self, memento: AttemptMemento):
+        self.attempt = memento.get_state()
+
+# Uso:
+# origin = AttemptOriginator(LoginAttempt(email="a@b.com", ip="1.2.3.4", user_agent="UA"))
+# snap = origin.save()
+# origin.attempt.status = "Rejected"
+# origin.restore(snap)  # vuelve a Pending
+
+```
+
+Observer
+
+Define una dependencia “uno a muchos”: cuando un sujeto cambia, notifica a sus observadores. Útil para disparar acciones cuando un intento pasa a “Rejected” (alerta, métrica, log).
+
+```python
+class Observer:
+    def update(self, attempt):
+        raise NotImplementedError
+
+class AttemptSubject:
+    def __init__(self):
+        self._observers = []
+
+    def attach(self, obs: Observer):
+        self._observers.append(obs)
+
+    def notify(self, attempt):
+        for obs in self._observers:
+            obs.update(attempt)
+
+class PrintAlertObserver(Observer):
+    def update(self, attempt):
+        if attempt.status == "Rejected":
+            print(f"[ALERT] Rejected: {attempt.email} from {attempt.ip} ({attempt.reason})")
+
+class MetricsObserver(Observer):
+    def __init__(self):
+        self.rejected = 0
+
+    def update(self, attempt):
+        if attempt.status == "Rejected":
+            self.rejected += 1
+
+# Uso:
+# subject = AttemptSubject()
+# subject.attach(PrintAlertObserver())
+# subject.attach(MetricsObserver())
+# subject.notify(attempt)
+
+```
+
+State
+
+Permite que un objeto cambie su comportamiento cuando cambia su estado interno. Útil para modelar estados de un intento: Pending → Logged → Rejected, etc.
+
+```python
+class AttemptState:
+    def handle(self, ctx):
+        raise NotImplementedError
+
+class PendingState(AttemptState):
+    def handle(self, ctx):
+        ctx.attempt.status = "Pending"
+
+class LoggedState(AttemptState):
+    def handle(self, ctx):
+        ctx.attempt.status = "Logged"
+
+class RejectedState(AttemptState):
+    def __init__(self, reason: str):
+        self.reason = reason
+
+    def handle(self, ctx):
+        ctx.attempt.status = "Rejected"
+        ctx.attempt.reason = self.reason
+
+class AttemptContext:
+    def __init__(self, attempt):
+        self.attempt = attempt
+        self.state: AttemptState = PendingState()
+
+    def set_state(self, state: AttemptState):
+        self.state = state
+
+    def apply(self):
+        self.state.handle(self)
+
+# Uso:
+# ctx = AttemptContext(attempt)
+# ctx.set_state(RejectedState("Invalid email"))
+# ctx.apply()
+
+
+```
+
+Strategy
+
+Define una familia de algoritmos, los encapsula y los hace intercambiables. Útil para cambiar políticas de validación/riesgo (estricta vs laxa) sin tocar el flujo principal.
+
+```python
+
+import re
+
+class RiskStrategy:
+    def evaluate(self, attempt) -> tuple[str, str]:
+        raise NotImplementedError
+
+class StrictRiskStrategy(RiskStrategy):
+    def evaluate(self, attempt):
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", attempt.email):
+            return ("Rejected", "Invalid email format")
+        if "bot" in (attempt.user_agent or "").lower():
+            return ("Rejected", "Suspicious user-agent")
+        return ("Logged", "")
+
+class LenientRiskStrategy(RiskStrategy):
+    def evaluate(self, attempt):
+        if not attempt.email:
+            return ("Rejected", "Missing email")
+        return ("Logged", "")
+
+class RiskEngine:
+    def __init__(self, strategy: RiskStrategy):
+        self.strategy = strategy
+
+    def run(self, attempt):
+        status, reason = self.strategy.evaluate(attempt)
+        attempt.status = status
+        attempt.reason = reason
+        return attempt
+
+# Uso:
+# engine = RiskEngine(StrictRiskStrategy())
+# engine.run(attempt)
+
+
+```
+
+Template Method
+
+Define el esqueleto de un algoritmo en una clase base, dejando algunos pasos a subclases. Útil para estandarizar el pipeline: obtener datos → validar → auditar → notificar.
+
+```python
+
+from datetime import datetime
+
+class AttemptPipelineTemplate:
+    def process(self, email, ip, user_agent):
+        attempt = self.build_attempt(email, ip, user_agent)
+        self.validate(attempt)
+        self.audit(attempt)
+        self.notify(attempt)
+        return attempt
+
+    def build_attempt(self, email, ip, user_agent):
+        return LoginAttempt(email=email, ip=ip, user_agent=user_agent, status="Pending", reason="")
+
+    def validate(self, attempt):
+        raise NotImplementedError
+
+    def audit(self, attempt):
+        # placeholder: aquí iría INSERT a sqlite
+        attempt.timestamp = datetime.utcnow().isoformat()
+
+    def notify(self, attempt):
+        pass
+
+class StrictAuditPipeline(AttemptPipelineTemplate):
+    def validate(self, attempt):
+        if "@" not in (attempt.email or ""):
+            attempt.status = "Rejected"
+            attempt.reason = "Invalid email"
+
+    def notify(self, attempt):
+        if attempt.status == "Rejected":
+            print(f"[ALERT] {attempt.email} rejected from {attempt.ip}")
+
+# Uso:
+# pipeline = StrictAuditPipeline()
+# attempt = pipeline.process(email, ip, user_agent)
+
+
+```
+
+
+Visitor
+
+Permite añadir operaciones a una estructura de objetos sin modificar sus clases. Útil para aplicar acciones a eventos/objetos de auditoría: exportar, redactar datos, generar reporte.
+
+```python
+
+from dataclasses import dataclass
+
+class Visitor:
+    def visit_attempt(self, attempt):
+        raise NotImplementedError
+
+@dataclass
+class AuditAttempt:
+    email: str
+    ip: str
+    user_agent: str
+    timestamp: str
+    status: str
+    reason: str = ""
+
+    def accept(self, visitor: Visitor):
+        return visitor.visit_attempt(self)
+
+class RedactVisitor(Visitor):
+    def visit_attempt(self, attempt: AuditAttempt):
+        redacted_ip = ".".join(attempt.ip.split(".")[:2] + ["x", "x"]) if attempt.ip else ""
+        return {
+            "email": attempt.email,
+            "ip": redacted_ip,
+            "status": attempt.status,
+            "timestamp": attempt.timestamp
+        }
+
+class CsvRowVisitor(Visitor):
+    def visit_attempt(self, attempt: AuditAttempt):
+        # fila CSV simple
+        return f'{attempt.email},{attempt.ip},{attempt.status},{attempt.timestamp},{attempt.reason}'
+
+# Uso:
+# row = audit_attempt.accept(CsvRowVisitor())
+# safe = audit_attempt.accept(RedactVisitor())
+
+
+```
+
+
 
 
 
