@@ -44,10 +44,46 @@ phishing_process = subprocess.Popen(...)
 ```
 CATEGORIA: ESTRUCTURAL
 
-Adapter: 
+Adapter: Actúa como un envoltorio que traduce las llamadas de tu sistema a la librería externa playwright, permitiendo cambiar de herramienta de automatización sin reescribir la lógica principal del validador.
+```python
+class PlaywrightAdapter:
+    def validar(self, email, password):
+        # Adapta la interfaz compleja de Playwright a un método simple
+        with sync_playwright() as p:
+            # ... lógica interna oculta ...
+            return "Success" if login_exitoso else "Fail"
 
-Bridge
+# Uso: El código principal solo ve .validar(), no sabe qué hay dentro
+resultado = PlaywrightAdapter().validar("admin", "123")
+```
+Bridge: Definición: Desacopla la acción de "Validar" (Abstracción) de la plataforma específica como Heroku o Facebook (Implementación), permitiendo añadir nuevos sitios objetivo sin modificar la clase que gestiona el proceso de validación.
 
-Composite
+```
+class Verificador: # Abstracción
+    def __init__(self, plataforma): self.plat = plataforma
+    def ejecutar(self): return self.plat.conectar() # Puente
+
+class HerokuImp: # Implementación Concreta A
+    def conectar(self): return "Conectando a Heroku..."
+
+# Uso: Inyectamos la plataforma deseada al crear el objeto
+chequeo = Verificador(HerokuImp())
+```
+Composite: Organiza las credenciales en una estructura de árbol (jerarquía parte-todo), permitiendo al sistema ejecutar validaciones sobre una credencial individual o sobre una campaña masiva completa usando la misma instrucción de código.
+
+```
+class Campana: # Composite (Grupo)
+    def __init__(self): self.lista = []
+    def agregar(self, item): self.lista.append(item)
+    
+    def validar(self):
+        # Trata a la lista igual que a un objeto único
+        for item in self.lista: item.validar()
+
+# Uso: Ejecuta todo el grupo con una sola llamada
+lote = Campana()
+lote.agregar(Credencial("user1"))
+lote.validar()
+```
 
 
