@@ -56,7 +56,7 @@ class PlaywrightAdapter:
 # Uso: El código principal solo ve .validar(), no sabe qué hay dentro
 resultado = PlaywrightAdapter().validar("admin", "123")
 ```
-Bridge: Definición: Desacopla la acción de "Validar" (Abstracción) de la plataforma específica como Heroku o Facebook (Implementación), permitiendo añadir nuevos sitios objetivo sin modificar la clase que gestiona el proceso de validación.
+Bridge: Desacopla la acción de "Validar" (Abstracción) de la plataforma específica como Heroku o Facebook (Implementación), permitiendo añadir nuevos sitios objetivo sin modificar la clase que gestiona el proceso de validación.
 
 ```python
 class Verificador: # Abstracción
@@ -87,7 +87,7 @@ lote.validar()
 
 ```
 Decorator
-Definición: Asigna responsabilidades adicionales a un objeto o función dinámicamente, proporcionando una alternativa flexible a la herencia para extender la funcionalidad (como añadir logs o autenticación) sin modificar el código original.
+Asigna responsabilidades adicionales a un objeto o función dinámicamente, proporcionando una alternativa flexible a la herencia para extender la funcionalidad (como añadir logs o autenticación) sin modificar el código original.
 ```python
 def log_decorator(func):
     def wrapper(*args, **kwargs):
@@ -103,7 +103,7 @@ def lanzar_ataque(target):
 lanzar_ataque("192.168.1.5")
 ```
 Facade
-Definición: Proporciona una interfaz unificada y simplificada para un conjunto complejo de subsistemas (como base de datos, red y logs), ocultando la complejidad interna para que el cliente pueda usarlos fácilmente.
+Proporciona una interfaz unificada y simplificada para un conjunto complejo de subsistemas (como base de datos, red y logs), ocultando la complejidad interna para que el cliente pueda usarlos fácilmente.
 ```python
 class PhishingFacade:
     def __init__(self):
@@ -121,7 +121,7 @@ class PhishingFacade:
 PhishingFacade().iniciar_operacion()
 ```
 Flyweight
-Definición: Utiliza el compartimiento para soportar eficientemente grandes cantidades de objetos, extrayendo el estado común (intrínseco) en un solo objeto compartido para ahorrar memoria RAM, manteniendo separado solo el estado único (extrínseco).
+Utiliza el compartimiento para soportar eficientemente grandes cantidades de objetos, extrayendo el estado común (intrínseco) en un solo objeto compartido para ahorrar memoria RAM, manteniendo separado solo el estado único (extrínseco).
 ```python
 class PlantillaEmail: # Estado Intrínseco (Pesado/Compartido)
     def __init__(self, html): self.html = html 
@@ -134,7 +134,7 @@ plantilla_comun = PlantillaEmail("<h1>Hola...</h1>" * 1000)
 envios = [Envio(f"user{i}@test.com", plantilla_comun) for i in range(10000)]
 ```
 Proxy
-Definición: Proporciona un sustituto o marcador de posición para controlar el acceso a otro objeto, permitiendo realizar operaciones de seguridad, validación o carga diferida antes de permitir que la solicitud llegue al objeto real.
+Proporciona un sustituto o marcador de posición para controlar el acceso a otro objeto, permitiendo realizar operaciones de seguridad, validación o carga diferida antes de permitir que la solicitud llegue al objeto real.
 ```python
 class RealDatabase:
     def query(self, q): print(f"Ejecutando: {q}")
@@ -154,3 +154,4 @@ proxy = SecurityProxy()
 proxy.query("DROP TABLE", "guest") # Bloqueado
 proxy.query("SELECT *", "admin")   # Permitido
 ```
+
