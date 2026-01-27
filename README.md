@@ -58,7 +58,7 @@ resultado = PlaywrightAdapter().validar("admin", "123")
 ```
 Bridge: Definición: Desacopla la acción de "Validar" (Abstracción) de la plataforma específica como Heroku o Facebook (Implementación), permitiendo añadir nuevos sitios objetivo sin modificar la clase que gestiona el proceso de validación.
 
-```
+```python
 class Verificador: # Abstracción
     def __init__(self, plataforma): self.plat = plataforma
     def ejecutar(self): return self.plat.conectar() # Puente
@@ -71,7 +71,7 @@ chequeo = Verificador(HerokuImp())
 ```
 Composite: Organiza las credenciales en una estructura de árbol (jerarquía parte-todo), permitiendo al sistema ejecutar validaciones sobre una credencial individual o sobre una campaña masiva completa usando la misma instrucción de código.
 
-```
+```python
 class Campana: # Composite (Grupo)
     def __init__(self): self.lista = []
     def agregar(self, item): self.lista.append(item)
@@ -85,5 +85,6 @@ lote = Campana()
 lote.agregar(Credencial("user1"))
 lote.validar()
 ```
+
 
 
