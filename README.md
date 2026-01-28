@@ -1354,6 +1354,92 @@ class AttemptOriginator:
 # origin.restore(snap)  # vuelve a Pending
 
 ```
+```java
+import java.util.Objects;
+
+class LoginAttempt {
+    String email;
+    String ip;
+    String userAgent;
+    String status;
+    String reason;
+
+    LoginAttempt(String email, String ip, String userAgent) {
+        this.email = email;
+        this.ip = ip;
+        this.userAgent = userAgent;
+        this.status = "Pending";
+        this.reason = "";
+    }
+
+    LoginAttempt copy() {
+        LoginAttempt c = new LoginAttempt(email, ip, userAgent);
+        c.status = status;
+        c.reason = reason;
+        return c;
+    }
+}
+
+final class AttemptMemento {
+    private final LoginAttempt snapshot;
+
+    AttemptMemento(LoginAttempt attempt) {
+        this.snapshot = attempt.copy();
+    }
+
+    LoginAttempt getState() {
+        return snapshot.copy();
+    }
+}
+
+class AttemptOriginator {
+    private LoginAttempt attempt;
+
+    AttemptOriginator(LoginAttempt attempt) {
+        this.attempt = Objects.requireNonNull(attempt);
+    }
+
+    AttemptMemento save() {
+        return new AttemptMemento(attempt);
+    }
+
+    void restore(AttemptMemento m) {
+        this.attempt = m.getState();
+    }
+
+    LoginAttempt getAttempt() { return attempt; }
+}
+
+```
+```plantuml
+@startuml
+class LoginAttempt {
+  +email: String
+  +ip: String
+  +userAgent: String
+  +status: String
+  +reason: String
+  +copy(): LoginAttempt
+}
+
+class AttemptOriginator {
+  -attempt: LoginAttempt
+  +save(): AttemptMemento
+  +restore(m: AttemptMemento): void
+  +getAttempt(): LoginAttempt
+}
+
+class AttemptMemento {
+  -snapshot: LoginAttempt
+  +getState(): LoginAttempt
+}
+
+AttemptOriginator --> LoginAttempt
+AttemptOriginator --> AttemptMemento : creates
+AttemptMemento *-- LoginAttempt : snapshot
+@enduml
+
+```
 
 Observer
 
@@ -1393,6 +1479,72 @@ class MetricsObserver(Observer):
 # subject.attach(PrintAlertObserver())
 # subject.attach(MetricsObserver())
 # subject.notify(attempt)
+
+```
+
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+interface AttemptObserver {
+    void update(LoginAttempt attempt);
+}
+
+class AttemptSubject {
+    private final List<AttemptObserver> observers = new ArrayList<>();
+
+    void attach(AttemptObserver obs) { observers.add(obs); }
+    void detach(AttemptObserver obs) { observers.remove(obs); }
+
+    void notifyAll(LoginAttempt attempt) {
+        for (AttemptObserver o : observers) o.update(attempt);
+    }
+}
+
+class PrintAlertObserver implements AttemptObserver {
+    @Override
+    public void update(LoginAttempt a) {
+        if ("Rejected".equals(a.status)) {
+            System.out.println("[ALERT] Rejected: " + a.email + " from " + a.ip + " (" + a.reason + ")");
+        }
+    }
+}
+
+class MetricsObserver implements AttemptObserver {
+    int rejectedCount = 0;
+
+    @Override
+    public void update(LoginAttempt a) {
+        if ("Rejected".equals(a.status)) rejectedCount++;
+    }
+}
+
+```
+```plantuml
+@startuml
+interface AttemptObserver {
+  +update(a: LoginAttempt): void
+}
+
+class AttemptSubject {
+  -observers: List<AttemptObserver>
+  +attach(o: AttemptObserver): void
+  +detach(o: AttemptObserver): void
+  +notifyAll(a: LoginAttempt): void
+}
+
+class PrintAlertObserver
+class MetricsObserver {
+  +rejectedCount: int
+}
+
+class LoginAttempt
+
+AttemptObserver <|.. PrintAlertObserver
+AttemptObserver <|.. MetricsObserver
+AttemptSubject o-- AttemptObserver
+AttemptSubject --> LoginAttempt : notifies about
+@enduml
 
 ```
 
@@ -1440,6 +1592,79 @@ class AttemptContext:
 
 ```
 
+```java
+interface AttemptState {
+    void apply(AttemptContext ctx);
+}
+
+class AttemptContext {
+    final LoginAttempt attempt;
+    private AttemptState state;
+
+    AttemptContext(LoginAttempt attempt) {
+        this.attempt = attempt;
+        this.state = new PendingState();
+    }
+
+    void setState(AttemptState s) { this.state = s; }
+    void apply() { state.apply(this); }
+}
+
+class PendingState implements AttemptState {
+    public void apply(AttemptContext ctx) {
+        ctx.attempt.status = "Pending";
+        ctx.attempt.reason = "";
+    }
+}
+
+class LoggedState implements AttemptState {
+    public void apply(AttemptContext ctx) {
+        ctx.attempt.status = "Logged";
+        ctx.attempt.reason = "";
+    }
+}
+
+class RejectedState implements AttemptState {
+    private final String reason;
+    RejectedState(String reason) { this.reason = reason; }
+
+    public void apply(AttemptContext ctx) {
+        ctx.attempt.status = "Rejected";
+        ctx.attempt.reason = reason;
+    }
+}
+
+```
+```plantuml
+@startuml
+interface AttemptState {
+  +apply(ctx: AttemptContext): void
+}
+
+class AttemptContext {
+  +attempt: LoginAttempt
+  -state: AttemptState
+  +setState(s: AttemptState): void
+  +apply(): void
+}
+
+class PendingState
+class LoggedState
+class RejectedState {
+  -reason: String
+}
+
+class LoginAttempt
+
+AttemptState <|.. PendingState
+AttemptState <|.. LoggedState
+AttemptState <|.. RejectedState
+AttemptContext --> AttemptState
+AttemptContext --> LoginAttempt
+@enduml
+
+```
+
 Strategy
 
 Define una familia de algoritmos, los encapsula y los hace intercambiables. Útil para cambiar políticas de validación/riesgo (estricta vs laxa) sin tocar el flujo principal.
@@ -1480,6 +1705,87 @@ class RiskEngine:
 # engine = RiskEngine(StrictRiskStrategy())
 # engine.run(attempt)
 
+
+```
+```java
+interface RiskStrategy {
+    RiskResult evaluate(LoginAttempt attempt);
+}
+
+class RiskResult {
+    final String status;
+    final String reason;
+    RiskResult(String status, String reason) {
+        this.status = status;
+        this.reason = reason;
+    }
+}
+
+class StrictRiskStrategy implements RiskStrategy {
+    @Override
+    public RiskResult evaluate(LoginAttempt a) {
+        if (a.email == null || !a.email.contains("@")) {
+            return new RiskResult("Rejected", "Invalid email format");
+        }
+        if (a.userAgent != null && a.userAgent.toLowerCase().contains("bot")) {
+            return new RiskResult("Rejected", "Suspicious user-agent");
+        }
+        return new RiskResult("Logged", "");
+    }
+}
+
+class LenientRiskStrategy implements RiskStrategy {
+    @Override
+    public RiskResult evaluate(LoginAttempt a) {
+        if (a.email == null || a.email.isBlank()) {
+            return new RiskResult("Rejected", "Missing email");
+        }
+        return new RiskResult("Logged", "");
+    }
+}
+
+class RiskEngine {
+    private RiskStrategy strategy;
+
+    RiskEngine(RiskStrategy strategy) { this.strategy = strategy; }
+    void setStrategy(RiskStrategy s) { this.strategy = s; }
+
+    void run(LoginAttempt a) {
+        RiskResult r = strategy.evaluate(a);
+        a.status = r.status;
+        a.reason = r.reason;
+    }
+}
+
+```
+```plantuml
+@startuml
+interface RiskStrategy {
+  +evaluate(a: LoginAttempt): RiskResult
+}
+
+class StrictRiskStrategy
+class LenientRiskStrategy
+
+class RiskResult {
+  +status: String
+  +reason: String
+}
+
+class RiskEngine {
+  -strategy: RiskStrategy
+  +setStrategy(s: RiskStrategy): void
+  +run(a: LoginAttempt): void
+}
+
+class LoginAttempt
+
+RiskStrategy <|.. StrictRiskStrategy
+RiskStrategy <|.. LenientRiskStrategy
+RiskEngine --> RiskStrategy
+RiskEngine --> LoginAttempt
+RiskStrategy --> RiskResult
+@enduml
 
 ```
 
@@ -1526,6 +1832,76 @@ class StrictAuditPipeline(AttemptPipelineTemplate):
 # pipeline = StrictAuditPipeline()
 # attempt = pipeline.process(email, ip, user_agent)
 
+
+```
+```java
+import java.time.Instant;
+
+abstract class AttemptPipelineTemplate {
+
+    public final LoginAttempt process(String email, String ip, String userAgent) {
+        LoginAttempt attempt = buildAttempt(email, ip, userAgent);
+        validate(attempt);
+        audit(attempt);
+        notify(attempt);
+        return attempt;
+    }
+
+    protected LoginAttempt buildAttempt(String email, String ip, String userAgent) {
+        return new LoginAttempt(email, ip, userAgent);
+    }
+
+    protected abstract void validate(LoginAttempt attempt);
+
+    protected void audit(LoginAttempt attempt) {
+        // placeholder: aquí iría persistencia (SQLite/JDBC)
+        // ejemplo: attempt.timestamp = Instant.now().toString();
+        attempt.reason = attempt.reason == null ? "" : attempt.reason;
+    }
+
+    protected void notify(LoginAttempt attempt) {
+        // opcional
+    }
+}
+
+class StrictAuditPipeline extends AttemptPipelineTemplate {
+    @Override
+    protected void validate(LoginAttempt a) {
+        if (a.email == null || !a.email.contains("@")) {
+            a.status = "Rejected";
+            a.reason = "Invalid email";
+        } else {
+            a.status = "Logged";
+            a.reason = "";
+        }
+    }
+
+    @Override
+    protected void notify(LoginAttempt a) {
+        if ("Rejected".equals(a.status)) {
+            System.out.println("[ALERT] " + a.email + " rejected from " + a.ip);
+        }
+    }
+}
+
+```
+```plantuml
+@startuml
+abstract class AttemptPipelineTemplate {
+  +process(email: String, ip: String, ua: String): LoginAttempt
+  #buildAttempt(email: String, ip: String, ua: String): LoginAttempt
+  #validate(a: LoginAttempt): void
+  #audit(a: LoginAttempt): void
+  #notify(a: LoginAttempt): void
+}
+
+class StrictAuditPipeline
+
+class LoginAttempt
+
+AttemptPipelineTemplate <|-- StrictAuditPipeline
+AttemptPipelineTemplate --> LoginAttempt : creates/uses
+@enduml
 
 ```
 
@@ -1575,6 +1951,82 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+```java
+class AuditAttempt {
+    final String email;
+    final String ip;
+    final String userAgent;
+    final String timestamp;
+    final String status;
+    final String reason;
+
+    AuditAttempt(String email, String ip, String userAgent, String timestamp, String status, String reason) {
+        this.email = email;
+        this.ip = ip;
+        this.userAgent = userAgent;
+        this.timestamp = timestamp;
+        this.status = status;
+        this.reason = reason;
+    }
+
+    <T> T accept(AttemptVisitor<T> v) {
+        return v.visit(this);
+    }
+}
+
+interface AttemptVisitor<T> {
+    T visit(AuditAttempt a);
+}
+
+class RedactVisitor implements AttemptVisitor<String> {
+    @Override
+    public String visit(AuditAttempt a) {
+        String[] parts = a.ip != null ? a.ip.split("\\.") : new String[0];
+        String redacted = (parts.length == 4) ? (parts[0] + "." + parts[1] + ".x.x") : "";
+        return "{email:" + a.email + ", ip:" + redacted + ", status:" + a.status + ", ts:" + a.timestamp + "}";
+    }
+}
+
+class CsvRowVisitor implements AttemptVisitor<String> {
+    @Override
+    public String visit(AuditAttempt a) {
+        return String.join(",",
+                safe(a.email), safe(a.ip), safe(a.status), safe(a.timestamp), safe(a.reason));
+    }
+
+    private String safe(String s) {
+        if (s == null) return "";
+        return s.replace(",", " "); // simple
+    }
+}
+
+```
+```plantuml
+@startuml
+class AuditAttempt {
+  +email: String
+  +ip: String
+  +userAgent: String
+  +timestamp: String
+  +status: String
+  +reason: String
+  +accept(v: AttemptVisitor<T>): T
+}
+
+interface AttemptVisitor<T> {
+  +visit(a: AuditAttempt): T
+}
+
+class RedactVisitor
+class CsvRowVisitor
+
+AttemptVisitor <|.. RedactVisitor
+AttemptVisitor <|.. CsvRowVisitor
+AuditAttempt --> AttemptVisitor : accept()
+@enduml
+
+```
+
 
 
 
