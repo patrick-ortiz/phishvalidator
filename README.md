@@ -927,6 +927,49 @@ class AuditStampHandler extends Handler {
 // LoginAttempt a = chain.handle(new LoginAttempt("user@mail.com","1.2.3.4","UA"));
 ```
 
+```plantuml
+@startuml
+title Chain of Responsibility - LoginAttempt Validation
+
+class LoginAttempt {
+  +email: String
+  +ip: String
+  +userAgent: String
+  +timestamp: String
+  +status: String
+  +reason: String
+}
+
+abstract class Handler {
+  -next: Handler
+  +setNext(next: Handler): Handler
+  +handle(attempt: LoginAttempt): LoginAttempt
+}
+
+class EmailFormatHandler {
+  +handle(attempt: LoginAttempt): LoginAttempt
+}
+
+class BlockedIpHandler {
+  +handle(attempt: LoginAttempt): LoginAttempt
+}
+
+class AuditStampHandler {
+  +handle(attempt: LoginAttempt): LoginAttempt
+}
+
+Handler o--> Handler : next
+Handler <|-- EmailFormatHandler
+Handler <|-- BlockedIpHandler
+Handler <|-- AuditStampHandler
+
+EmailFormatHandler --> LoginAttempt
+BlockedIpHandler --> LoginAttempt
+AuditStampHandler --> LoginAttempt
+@enduml
+
+```
+
 Command (acciones encapsuladas: guardar en DB, notificar, etc.)
 
 Idea: cada acción es un “comando” ejecutable: SaveAttemptCommand, NotifyAdminCommand.
@@ -1022,6 +1065,50 @@ class Invoker {
 
 ```
 
+```plantuml
+@startuml
+title Command - Audit Actions
+
+class LoginAttempt {
+  +email: String
+  +ip: String
+  +userAgent: String
+  +timestamp: String
+  +status: String
+  +reason: String
+}
+
+interface Command {
+  +execute(): void
+}
+
+class SaveAttemptCommand {
+  -attempt: LoginAttempt
+  +execute(): void
+}
+
+class NotifyAdminCommand {
+  -attempt: LoginAttempt
+  +execute(): void
+}
+
+class Invoker {
+  -queue: List<Command>
+  +add(cmd: Command): void
+  +run(): void
+}
+
+Command <|.. SaveAttemptCommand
+Command <|.. NotifyAdminCommand
+
+SaveAttemptCommand --> LoginAttempt
+NotifyAdminCommand --> LoginAttempt
+
+Invoker o--> Command : queue
+@enduml
+
+```
+
 Iterator (recorrer registros del audit sin exponer detalles internos)
 
 Idea: un iterador para recorrer intentos en páginas (o por lote).
@@ -1090,6 +1177,37 @@ class AuditLogIterator implements Iterator<AuditRecord> {
 // while(it.hasNext()) System.out.println(it.next().email);
 ```
 
+```plantuml
+@startuml
+title Iterator - Audit Log Traversal
+
+class AuditRecord {
+  +email: String
+  +ip: String
+  +userAgent: String
+  +timestamp: String
+  +status: String
+  +reason: String
+}
+
+interface Iterator<T> {
+  +hasNext(): boolean
+  +next(): T
+}
+
+class AuditLogIterator {
+  -records: List<AuditRecord>
+  -index: int
+  +hasNext(): boolean
+  +next(): AuditRecord
+}
+
+Iterator <|.. AuditLogIterator
+AuditLogIterator o--> AuditRecord : records
+@enduml
+
+```
+
 Mediator (coordinar componentes: form → validación → audit → UI)
 
 Idea: el “mediator” coordina sin que los componentes se conozcan entre sí.
@@ -1150,6 +1268,50 @@ class LoginMediator {
 // chain.setNext(new BlockedIpHandler()).setNext(new AuditStampHandler());
 // LoginMediator mediator = new LoginMediator(chain, new Invoker());
 // mediator.process("user@mail.com","1.2.3.4","UA");
+```
+
+```plantuml
+@startuml
+title Mediator - Orchestrating Validation + Commands
+
+class LoginAttempt {
+  +email: String
+  +ip: String
+  +userAgent: String
+  +timestamp: String
+  +status: String
+  +reason: String
+}
+
+abstract class Handler {
+  -next: Handler
+  +setNext(next: Handler): Handler
+  +handle(attempt: LoginAttempt): LoginAttempt
+}
+
+interface Command {
+  +execute(): void
+}
+
+class Invoker {
+  -queue: List<Command>
+  +add(cmd: Command): void
+  +run(): void
+}
+
+class LoginMediator {
+  -validationChain: Handler
+  -invoker: Invoker
+  +process(email: String, ip: String, userAgent: String): LoginAttempt
+}
+
+LoginMediator --> Handler : uses
+LoginMediator --> Invoker : uses
+Invoker o--> Command : queue
+Handler --> LoginAttempt
+LoginMediator --> LoginAttempt
+@enduml
+
 ```
 
 Memento
@@ -1413,6 +1575,7 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+
 
 
 
