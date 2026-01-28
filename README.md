@@ -1,3 +1,5 @@
+Patrones de Diseño
+
 CATEGORÍA: CREACIONAL
 
 Factory Method: Define una interfaz para crear un objeto, pero deja que las subclases decidan qué clase instanciar. Permite delegar la lógica de creación.
@@ -1411,6 +1413,7 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+
 
 
 
