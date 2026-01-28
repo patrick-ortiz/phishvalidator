@@ -195,6 +195,27 @@ if phishing_process:
 # Línea 45:
 phishing_process = subprocess.Popen(...)
 ```
+```java
+import java.io.IOException;
+
+public class ProcessManager {
+
+    private static Process phishingProcess = null;
+
+    public static void launchPhishing() {
+        if (phishingProcess != null) {
+            phishingProcess.destroy();
+        }
+
+        try {
+            ProcessBuilder builder = new ProcessBuilder("comando", "argumentos");
+            phishingProcess = builder.start();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
 CATEGORIA: ESTRUCTURAL
 
 Adapter: Actúa como un envoltorio que traduce las llamadas de tu sistema a la librería externa playwright, permitiendo cambiar de herramienta de automatización sin reescribir la lógica principal del validador.
@@ -209,6 +230,28 @@ class PlaywrightAdapter:
 # Uso: El código principal solo ve .validar(), no sabe qué hay dentro
 resultado = PlaywrightAdapter().validar("admin", "123")
 ```
+```java
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.Playwright;
+
+public class PlaywrightAdapter {
+
+    public String validar(String email, String password) {
+        try (Playwright playwright = Playwright.create()) {
+            Browser browser = playwright.chromium().launch();
+            
+            boolean loginExitoso = false;
+
+            return loginExitoso ? "Success" : "Fail";
+        }
+    }
+
+    public static void main(String[] args) {
+        String resultado = new PlaywrightAdapter().validar("admin", "123");
+    }
+}
+
+```
 Bridge: Desacopla la acción de "Validar" (Abstracción) de la plataforma específica como Heroku o Facebook (Implementación), permitiendo añadir nuevos sitios objetivo sin modificar la clase que gestiona el proceso de validación.
 
 ```python
@@ -221,6 +264,37 @@ class HerokuImp: # Implementación Concreta A
 
 # Uso: Inyectamos la plataforma deseada al crear el objeto
 chequeo = Verificador(HerokuImp())
+```
+```java
+interface PlataformaImp {
+    String conectar();
+}
+
+class HerokuImp implements PlataformaImp {
+    public String conectar() {
+        return "Conectando a Heroku...";
+    }
+}
+
+class Verificador {
+    private PlataformaImp plat;
+
+    public Verificador(PlataformaImp plataforma) {
+        this.plat = plataforma;
+    }
+
+    public String ejecutar() {
+        return this.plat.conectar(); // Puente
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Verificador chequeo = new Verificador(new HerokuImp());
+        chequeo.ejecutar(); 
+    }
+}
+
 ```
 Composite: Organiza las credenciales en una estructura de árbol (jerarquía parte-todo), permitiendo al sistema ejecutar validaciones sobre una credencial individual o sobre una campaña masiva completa usando la misma instrucción de código.
 
@@ -239,6 +313,47 @@ lote.agregar(Credencial("user1"))
 lote.validar()
 
 ```
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+interface Validable {
+    void validar();
+}
+
+class Credencial implements Validable {
+    private String user;
+
+    public Credencial(String user) {
+        this.user = user;
+    }
+
+    public void validar() {
+    }
+}
+
+class Campana implements Validable {
+    private List<Validable> lista = new ArrayList<>();
+
+    public void agregar(Validable item) {
+        this.lista.add(item);
+    }
+
+    public void validar() {
+        for (Validable item : lista) {
+            item.validar();
+        }
+    }
+}
+
+public class Main {
+    public static void main(String[] args) {
+        Campana lote = new Campana();
+        lote.agregar(new Credencial("user1"));
+        lote.validar();
+    }
+}
+```
 Decorator
 Asigna responsabilidades adicionales a un objeto o función dinámicamente, proporcionando una alternativa flexible a la herencia para extender la funcionalidad (como añadir logs o autenticación) sin modificar el código original.
 ```python
@@ -254,6 +369,9 @@ def lanzar_ataque(target):
 
 # Uso: Al llamar a la función, se ejecuta automáticamente el log extra
 lanzar_ataque("192.168.1.5")
+```
+```java
+
 ```
 Facade
 Proporciona una interfaz unificada y simplificada para un conjunto complejo de subsistemas (como base de datos, red y logs), ocultando la complejidad interna para que el cliente pueda usarlos fácilmente.
@@ -273,6 +391,9 @@ class PhishingFacade:
 # Uso: El cliente solo llama a un método simple
 PhishingFacade().iniciar_operacion()
 ```
+```java
+
+```
 Flyweight
 Utiliza el compartimiento para soportar eficientemente grandes cantidades de objetos, extrayendo el estado común (intrínseco) en un solo objeto compartido para ahorrar memoria RAM, manteniendo separado solo el estado único (extrínseco).
 ```python
@@ -285,6 +406,9 @@ class Envio: # Estado Extrínseco (Único)
 plantilla_comun = PlantillaEmail("<h1>Hola...</h1>" * 1000)
 # Miles de envíos apuntan a la misma plantilla (Ahorro masivo de RAM)
 envios = [Envio(f"user{i}@test.com", plantilla_comun) for i in range(10000)]
+```
+```java
+
 ```
 Proxy
 Proporciona un sustituto o marcador de posición para controlar el acceso a otro objeto, permitiendo realizar operaciones de seguridad, validación o carga diferida antes de permitir que la solicitud llegue al objeto real.
@@ -306,6 +430,9 @@ class SecurityProxy:
 proxy = SecurityProxy()
 proxy.query("DROP TABLE", "guest") # Bloqueado
 proxy.query("SELECT *", "admin")   # Permitido
+```
+```java
+
 ```
 
 CATEGORIA: COMPORTAMIENTO
@@ -742,6 +869,7 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+
 
 
 
