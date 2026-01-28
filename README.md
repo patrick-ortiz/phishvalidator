@@ -11,20 +11,173 @@ class LogisticaMaritima extends Logistica {
 }
 ```
 ```python
+class Logistica:
+    def crear_transporte(self):
+        raise NotImplementedError()
+
+class LogisticaMaritima(Logistica):
+    def crear_transporte(self):
+        return Barco()
+```
+```plantuml
+@startuml
+interface Product {
+    + operation()
+}
+
+class ConcreteProduct implements Product {
+    + operation()
+}
+
+abstract class Creator {
+    + {abstract} factoryMethod(): Product
+    + someOperation()
+}
+
+class ConcreteCreator extends Creator {
+    + factoryMethod(): Product
+}
+
+Creator ..> Product : uses
+ConcreteCreator ..> ConcreteProduct : creates
+@enduml
 ```
 
 Abstract Factory: Proporciona una interfaz para crear familias de objetos relacionados o dependientes sin especificar sus clases concretas. Asegura la compatibilidad entre productos.
 ```java
+interface FabricaMuebles {
+    Silla crearSilla();
+    Mesa crearMesa();
+}
+
+class FabricaModerna implements FabricaMuebles {
+    public Silla crearSilla() { return new SillaModerna(); }
+    public Mesa crearMesa() { return new MesaModerna(); }
+}
 ```
 ```python
+class FabricaMuebles:
+    def crear_silla(self): pass
+    def crear_mesa(self): pass
+
+class FabricaModerna(FabricaMuebles):
+    def crear_silla(self): return SillaModerna()
+    def crear_mesa(self): return MesaModerna()
+```
+```plantuml
+@startuml
+interface AbstractFactory {
+    + createProductA()
+    + createProductB()
+}
+
+class ConcreteFactory1 implements AbstractFactory {
+    + createProductA()
+    + createProductB()
+}
+
+class ConcreteFactory2 implements AbstractFactory {
+    + createProductA()
+    + createProductB()
+}
+
+interface AbstractProductA
+interface AbstractProductB
+
+class ConcreteProductA1 implements AbstractProductA
+class ConcreteProductB1 implements AbstractProductB
+
+class ConcreteProductA2 implements AbstractProductA
+class ConcreteProductB2 implements AbstractProductB
+
+ConcreteFactory1 ..> ConcreteProductA1 : creates
+ConcreteFactory1 ..> ConcreteProductB1 : creates
+
+ConcreteFactory2 ..> ConcreteProductA2 : creates
+ConcreteFactory2 ..> ConcreteProductB2 : creates
+@enduml
 ```
 Builder: Separa la construcción de un objeto complejo de su representación, permitiendo crear diferentes variaciones del mismo objeto usando el mismo proceso paso a paso.
 ```java
+Pizza pizza = new PizzaBuilder()
+    .setMasa("Delgada")
+    .setSalsa("Tomate")
+    .setExtraQueso(true)
+    .build();
 ```
 ```python
+pizza = PizzaBuilder() \
+    .set_masa("Delgada") \
+    .set_salsa("Tomate") \
+    .set_extra_queso(True) \
+    .build()
+```
+```plantuml
+@startuml
+class Director {
+    + construct(builder: Builder)
+}
+
+interface Builder {
+    + buildPartA()
+    + buildPartB()
+    + getResult(): Product
+}
+
+class ConcreteBuilder implements Builder {
+    - product: Product
+    + buildPartA()
+    + buildPartB()
+    + getResult(): Product
+}
+
+class Product {
+    - parts: List
+    + add(part)
+}
+
+Director o--> Builder
+ConcreteBuilder ..> Product : builds
+@enduml
 ```
 Prototype: Permite copiar objetos existentes sin que el código dependa de sus clases, utilizando una instancia "prototipo" para generar nuevos objetos mediante clonación.
+```java
+// En Java se suele usar la interfaz Cloneable
+class Oveja implements Cloneable {
+    public Oveja clone() throws CloneNotSupportedException {
+        return (Oveja) super.clone();
+    }
+}
+```
 ```python
+import copy
+
+class Oveja:
+    def clone(self):
+        return copy.deepcopy(self)
+```
+```plantuml
+@startuml
+interface Prototype {
+    + clone(): Prototype
+}
+
+class ConcretePrototype1 implements Prototype {
+    - field1
+    + clone(): Prototype
+}
+
+class ConcretePrototype2 implements Prototype {
+    - field2
+    + clone(): Prototype
+}
+
+class Client {
+    + operation()
+}
+
+Client ..> Prototype : uses / clones
+@enduml
 ```
 
 Singleton: El patrón se manifiesta como un Control de Instancia Única basado en Estado Global. Se utiliza una variable global (phishing_process) como recurso compartido para asegurar que solo un subproceso de ataque esté activo simultáneamente.
@@ -589,6 +742,7 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+
 
 
 
