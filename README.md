@@ -722,6 +722,33 @@ class AuditLogIterator implements Iterator<AuditRecord> {
 // while(it.hasNext()) System.out.println(it.next().email);
 ```
 
+Mediator (coordinar componentes: form → validación → audit → UI)
+
+Idea: el “mediator” coordina sin que los componentes se conozcan entre sí.
+
+```python
+class LoginMediator:
+    def __init__(self, validator_chain, invoker, db_path):
+        self.validator_chain = validator_chain
+        self.invoker = invoker
+        self.db_path = db_path
+
+    def process_login_attempt(self, email, ip, user_agent):
+        attempt = LoginAttempt(email=email, ip=ip, user_agent=user_agent, timestamp="")
+        attempt = self.validator_chain.handle(attempt)
+
+        # Siempre registrar (incluso rechazados) para auditoría
+        self.invoker.add(SaveAttemptCommand(self.db_path, attempt))
+
+        # Notificar solo si es sospechoso/rechazado, por ejemplo
+        if attempt.status == "Rejected":
+            self.invoker.add(NotifyAdminCommand(attempt))
+
+        self.invoker.run()
+        return attempt
+
+```
+
 ```java
 class LoginMediator {
     private final Handler validationChain;
@@ -755,33 +782,6 @@ class LoginMediator {
 // chain.setNext(new BlockedIpHandler()).setNext(new AuditStampHandler());
 // LoginMediator mediator = new LoginMediator(chain, new Invoker());
 // mediator.process("user@mail.com","1.2.3.4","UA");
-```
-
-Mediator (coordinar componentes: form → validación → audit → UI)
-
-Idea: el “mediator” coordina sin que los componentes se conozcan entre sí.
-
-```python
-class LoginMediator:
-    def __init__(self, validator_chain, invoker, db_path):
-        self.validator_chain = validator_chain
-        self.invoker = invoker
-        self.db_path = db_path
-
-    def process_login_attempt(self, email, ip, user_agent):
-        attempt = LoginAttempt(email=email, ip=ip, user_agent=user_agent, timestamp="")
-        attempt = self.validator_chain.handle(attempt)
-
-        # Siempre registrar (incluso rechazados) para auditoría
-        self.invoker.add(SaveAttemptCommand(self.db_path, attempt))
-
-        # Notificar solo si es sospechoso/rechazado, por ejemplo
-        if attempt.status == "Rejected":
-            self.invoker.add(NotifyAdminCommand(attempt))
-
-        self.invoker.run()
-        return attempt
-
 ```
 
 Memento
@@ -1045,6 +1045,7 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+
 
 
 
