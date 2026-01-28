@@ -492,6 +492,72 @@ class AuditStampHandler(Handler):
 # Uso:
 chain = EmailFormatHandler(BasicRateLimitHandler(AuditStampHandler()))
 ```
+```java
+import java.time.Instant;
+import java.util.Set;
+
+class LoginAttempt {
+    String email, ip, userAgent, timestamp;
+    String status = "Pending";
+    String reason = "";
+
+    LoginAttempt(String email, String ip, String userAgent) {
+        this.email = email;
+        this.ip = ip;
+        this.userAgent = userAgent;
+    }
+}
+
+abstract class Handler {
+    protected Handler next;
+    public Handler setNext(Handler next) { this.next = next; return next; }
+    public abstract LoginAttempt handle(LoginAttempt attempt);
+
+    protected LoginAttempt next(LoginAttempt attempt) {
+        return (next != null) ? next.handle(attempt) : attempt;
+    }
+}
+
+class EmailFormatHandler extends Handler {
+    @Override
+    public LoginAttempt handle(LoginAttempt attempt) {
+        if (attempt.email == null || !attempt.email.matches("^.+@.+\\..+$")) {
+            attempt.status = "Rejected";
+            attempt.reason = "Invalid email format";
+            return attempt;
+        }
+        return next(attempt);
+    }
+}
+
+class BlockedIpHandler extends Handler {
+    private final Set<String> blockedIps = Set.of("127.0.0.2");
+
+    @Override
+    public LoginAttempt handle(LoginAttempt attempt) {
+        if (blockedIps.contains(attempt.ip)) {
+            attempt.status = "Rejected";
+            attempt.reason = "Blocked / rate limited IP";
+            return attempt;
+        }
+        return next(attempt);
+    }
+}
+
+class AuditStampHandler extends Handler {
+    @Override
+    public LoginAttempt handle(LoginAttempt attempt) {
+        attempt.timestamp = Instant.now().toString();
+        if (attempt.status.equals("Pending")) attempt.status = "Logged";
+        return next(attempt);
+    }
+}
+
+// Uso:
+// Handler chain = new EmailFormatHandler();
+// chain.setNext(new BlockedIpHandler()).setNext(new AuditStampHandler());
+// LoginAttempt a = chain.handle(new LoginAttempt("user@mail.com","1.2.3.4","UA"));
+```
 
 Command (acciones encapsuladas: guardar en DB, notificar, etc.)
 
@@ -542,6 +608,52 @@ class Invoker:
 
 ```
 
+```java
+import java.util.ArrayList;
+import java.util.List;
+
+interface Command {
+    void execute();
+}
+
+class SaveAttemptCommand implements Command {
+    private final LoginAttempt attempt;
+    SaveAttemptCommand(LoginAttempt attempt) { this.attempt = attempt; }
+
+    @Override
+    public void execute() {
+        // Demo: aquí iría JDBC a SQLite (INSERT en login_audit)
+        System.out.println("[DB] Saved: " + attempt.email + " " + attempt.status);
+    }
+}
+
+class NotifyAdminCommand implements Command {
+    private final LoginAttempt attempt;
+    NotifyAdminCommand(LoginAttempt attempt) { this.attempt = attempt; }
+
+    @Override
+    public void execute() {
+        System.out.println("[ALERT] Rejected attempt from IP: " + attempt.ip + " reason=" + attempt.reason);
+    }
+}
+
+class Invoker {
+    private final List<Command> queue = new ArrayList<>();
+    public void add(Command c) { queue.add(c); }
+    public void run() {
+        for (Command c : queue) c.execute();
+        queue.clear();
+    }
+}
+
+// Uso:
+// Invoker inv = new Invoker();
+// inv.add(new SaveAttemptCommand(attempt));
+// if ("Rejected".equals(attempt.status)) inv.add(new NotifyAdminCommand(attempt));
+// inv.run();
+
+```
+
 Iterator (recorrer registros del audit sin exponer detalles internos)
 
 Idea: un iterador para recorrer intentos en páginas (o por lote).
@@ -579,6 +691,70 @@ class AuditLogIterator:
 #     for row in batch:
 #         print(row)
 
+```
+
+```java
+import java.util.Iterator;
+import java.util.List;
+
+class AuditRecord {
+    String email, ip, userAgent, timestamp, status, reason;
+
+    AuditRecord(String email, String ip, String userAgent, String timestamp, String status, String reason) {
+        this.email = email; this.ip = ip; this.userAgent = userAgent;
+        this.timestamp = timestamp; this.status = status; this.reason = reason;
+    }
+}
+
+class AuditLogIterator implements Iterator<AuditRecord> {
+    private final List<AuditRecord> records;
+    private int index = 0;
+
+    AuditLogIterator(List<AuditRecord> records) { this.records = records; }
+
+    @Override public boolean hasNext() { return index < records.size(); }
+    @Override public AuditRecord next() { return records.get(index++); }
+}
+
+// Uso:
+// List<AuditRecord> records = List.of(new AuditRecord(...), new AuditRecord(...));
+// Iterator<AuditRecord> it = new AuditLogIterator(records);
+// while(it.hasNext()) System.out.println(it.next().email);
+```
+
+```java
+class LoginMediator {
+    private final Handler validationChain;
+    private final Invoker invoker;
+
+    LoginMediator(Handler validationChain, Invoker invoker) {
+        this.validationChain = validationChain;
+        this.invoker = invoker;
+    }
+
+    public LoginAttempt process(String email, String ip, String userAgent) {
+        LoginAttempt attempt = new LoginAttempt(email, ip, userAgent);
+
+        attempt = validationChain.handle(attempt);
+
+        // Siempre registrar por auditoría
+        invoker.add(new SaveAttemptCommand(attempt));
+
+        // Notificar solo si fue rechazado
+        if ("Rejected".equals(attempt.status)) {
+            invoker.add(new NotifyAdminCommand(attempt));
+        }
+
+        invoker.run();
+        return attempt;
+    }
+}
+
+// Uso:
+// Handler chain = new EmailFormatHandler();
+// chain.setNext(new BlockedIpHandler()).setNext(new AuditStampHandler());
+// LoginMediator mediator = new LoginMediator(chain, new Invoker());
+// mediator.process("user@mail.com","1.2.3.4","UA");
 ```
 
 Mediator (coordinar componentes: form → validación → audit → UI)
@@ -869,6 +1045,7 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+
 
 
 
