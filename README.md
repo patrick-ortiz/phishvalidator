@@ -1,3 +1,5 @@
+Nombres: Angel Sánhez, Joshua de la Vega, Johan Novelo, Hector Figueredo, Patrick Ortiz
+
 Patrones de Diseño
 
 CATEGORÍA: CREACIONAL
@@ -2026,6 +2028,7 @@ AuditAttempt --> AttemptVisitor : accept()
 @enduml
 
 ```
+
 
 
 
