@@ -371,6 +371,41 @@ def lanzar_ataque(target):
 lanzar_ataque("192.168.1.5")
 ```
 ```java
+// 1. Interfaz funcional
+interface Ataque {
+    void ejecutar(String target);
+}
+
+// 2. Implementación original (función base)
+class AtaqueReal implements Ataque {
+    @Override
+    public void ejecutar(String target) {
+        System.out.println("Atacando a " + target);
+    }
+}
+
+// 3. Decorador (equivalente al log_decorator)
+class LogDecorator implements Ataque {
+    private Ataque ataque;
+
+    public LogDecorator(Ataque ataque) {
+        this.ataque = ataque;
+    }
+
+    @Override
+    public void ejecutar(String target) {
+        System.out.println("[LOG] Ejecutando: ejecutar");
+        ataque.ejecutar(target); // ejecuta la original
+    }
+}
+
+// 4. Uso
+public class Main {
+    public static void main(String[] args) {
+        Ataque ataque = new LogDecorator(new AtaqueReal());
+        ataque.ejecutar("192.168.1.5");
+    }
+}
 
 ```
 Facade
@@ -392,6 +427,53 @@ class PhishingFacade:
 PhishingFacade().iniciar_operacion()
 ```
 ```java
+// Subsistema 1
+class DatabaseManager {
+    public void connect() {
+        System.out.println("Conectando a la base de datos...");
+    }
+}
+
+// Subsistema 2
+class NetworkSender {
+    public void sendPayload() {
+        System.out.println("Enviando payload por la red...");
+    }
+}
+
+// Subsistema 3
+class LoggerSystem {
+    public void start() {
+        System.out.println("Iniciando sistema de logs...");
+    }
+}
+
+// Facade
+class PhishingFacade {
+    private DatabaseManager db;
+    private NetworkSender net;
+    private LoggerSystem log;
+
+    public PhishingFacade() {
+        this.db = new DatabaseManager();
+        this.net = new NetworkSender();
+        this.log = new LoggerSystem();
+    }
+
+    public void iniciarOperacion() {
+        // Oculta la complejidad de coordinar varios sistemas
+        log.start();
+        db.connect();
+        net.sendPayload();
+    }
+}
+
+// Uso
+public class Main {
+    public static void main(String[] args) {
+        new PhishingFacade().iniciarOperacion();
+    }
+}
 
 ```
 Flyweight
@@ -408,6 +490,55 @@ plantilla_comun = PlantillaEmail("<h1>Hola...</h1>" * 1000)
 envios = [Envio(f"user{i}@test.com", plantilla_comun) for i in range(10000)]
 ```
 ```java
+// Estado Intrínseco (Pesado / Compartido)
+class PlantillaEmail {
+    private String html;
+
+    public PlantillaEmail(String html) {
+        this.html = html;
+    }
+
+    public String getHtml() {
+        return html;
+    }
+}
+
+// Estado Extrínseco (Único por objeto)
+class Envio {
+    private String email;
+    private PlantillaEmail plantilla;
+
+    public Envio(String email, PlantillaEmail plantillaCompartida) {
+        this.email = email;
+        this.plantilla = plantillaCompartida;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public PlantillaEmail getPlantilla() {
+        return plantilla;
+    }
+}
+
+// Uso
+public class Main {
+    public static void main(String[] args) {
+
+        // Plantilla compartida (una sola en memoria)
+        PlantillaEmail plantillaComun =
+                new PlantillaEmail("<h1>Hola...</h1>".repeat(1000));
+
+        // Miles de envíos reutilizan la misma plantilla
+        Envio[] envios = new Envio[10000];
+        for (int i = 0; i < envios.length; i++) {
+            envios[i] = new Envio("user" + i + "@test.com", plantillaComun);
+        }
+
+        System.out.println("Envios creados: " + envios.length);
+    }
+}
 
 ```
 Proxy
@@ -432,6 +563,38 @@ proxy.query("DROP TABLE", "guest") # Bloqueado
 proxy.query("SELECT *", "admin")   # Permitido
 ```
 ```java
+// Sujeto real
+class RealDatabase {
+    public void query(String q) {
+        System.out.println("Ejecutando: " + q);
+    }
+}
+
+// Proxy de seguridad
+class SecurityProxy {
+    private RealDatabase realDb;
+
+    public SecurityProxy() {
+        this.realDb = new RealDatabase();
+    }
+
+    public void query(String q, String user) {
+        // El Proxy intercepta y valida permisos
+        if ("admin".equals(user)) {
+            realDb.query(q);
+        } else {
+            System.out.println("¡Acceso Denegado!");
+        }
+    }
+}
+
+// Uso
+public class Main {
+    public static void main(String[] args) {
+        SecurityProxy proxy = new SecurityProxy();
+        proxy.query("DROP TABLE", "guest"); // Bloqueado
+    }
+}
 
 ```
 
@@ -1045,6 +1208,7 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+
 
 
 
