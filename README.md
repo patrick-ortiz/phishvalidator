@@ -216,6 +216,19 @@ public class ProcessManager {
     }
 }
 ```
+```plantuml
+@startuml
+class ProcessManager {
+    - {static} Process phishingProcess
+    + {static} void launchPhishing()
+}
+
+note right of ProcessManager::phishingProcess
+  Variable estática que actúa
+  como Estado Global único
+end note
+@enduml
+```
 CATEGORIA: ESTRUCTURAL
 
 Adapter: Actúa como un envoltorio que traduce las llamadas de tu sistema a la librería externa playwright, permitiendo cambiar de herramienta de automatización sin reescribir la lógica principal del validador.
@@ -251,6 +264,34 @@ public class PlaywrightAdapter {
     }
 }
 
+```
+```plantuml
+@startuml
+class Client {
+}
+
+class PlaywrightAdapter {
+    + validar(email, password) : String
+}
+
+package "Librería Externa" {
+    class Playwright {
+        + create()
+    }
+    class Browser {
+        + launch()
+    }
+}
+
+Client -> PlaywrightAdapter : llama a validar()
+PlaywrightAdapter ..> Playwright : adapta
+PlaywrightAdapter ..> Browser : controla
+
+note right of PlaywrightAdapter
+  Transforma la interfaz compleja
+  en un simple "Success/Fail"
+end note
+@enduml
 ```
 Bridge: Desacopla la acción de "Validar" (Abstracción) de la plataforma específica como Heroku o Facebook (Implementación), permitiendo añadir nuevos sitios objetivo sin modificar la clase que gestiona el proceso de validación.
 
@@ -295,6 +336,29 @@ public class Main {
     }
 }
 
+```
+```plantuml
+@startuml
+' Abstracción
+class Verificador {
+    - PlataformaImp plat
+    + Verificador(PlataformaImp)
+    + ejecutar()
+}
+
+' Puente (Interface)
+interface PlataformaImp {
+    + conectar() : String
+}
+
+' Implementación Concreta
+class HerokuImp {
+    + conectar() : String
+}
+
+Verificador o-> PlataformaImp : puente
+PlataformaImp <|.. HerokuImp : implementa
+@enduml
 ```
 Composite: Organiza las credenciales en una estructura de árbol (jerarquía parte-todo), permitiendo al sistema ejecutar validaciones sobre una credencial individual o sobre una campaña masiva completa usando la misma instrucción de código.
 
@@ -354,6 +418,34 @@ public class Main {
     }
 }
 ```
+```plantuml
+@startuml
+interface Validable {
+    + validar()
+}
+
+class Credencial {
+    - String user
+    + validar()
+}
+
+class Campana {
+    - List<Validable> lista
+    + agregar(Validable)
+    + validar()
+}
+
+' Relaciones
+Validable <|.. Credencial
+Validable <|.. Campana
+Campana o--> "0..*" Validable : contiene
+
+note right of Campana::validar
+  Itera recursivamente
+  sobre sus hijos
+end note
+@enduml
+```
 Decorator
 Asigna responsabilidades adicionales a un objeto o función dinámicamente, proporcionando una alternativa flexible a la herencia para extender la funcionalidad (como añadir logs o autenticación) sin modificar el código original.
 ```python
@@ -407,6 +499,32 @@ public class Main {
     }
 }
 
+```
+```plantuml
+@startuml
+interface Ataque {
+    + ejecutar(target)
+}
+
+class AtaqueReal {
+    + ejecutar(target)
+}
+
+class LogDecorator {
+    - Ataque ataque
+    + LogDecorator(Ataque)
+    + ejecutar(target)
+}
+
+Ataque <|.. AtaqueReal
+Ataque <|.. LogDecorator
+LogDecorator o--> Ataque : envuelve
+
+note right of LogDecorator
+  Agrega logging antes/después
+  de llamar a ataque.ejecutar()
+end note
+@enduml
 ```
 Facade
 Proporciona una interfaz unificada y simplificada para un conjunto complejo de subsistemas (como base de datos, red y logs), ocultando la complejidad interna para que el cliente pueda usarlos fácilmente.
@@ -476,6 +594,37 @@ public class Main {
 }
 
 ```
+```plantuml
+@startuml
+class PhishingFacade {
+    - DatabaseManager db
+    - NetworkSender net
+    - LoggerSystem log
+    + iniciarOperacion()
+}
+
+package "Subsistemas Complejos" {
+    class DatabaseManager {
+        + connect()
+    }
+    class NetworkSender {
+        + sendPayload()
+    }
+    class LoggerSystem {
+        + start()
+    }
+}
+
+PhishingFacade --> DatabaseManager
+PhishingFacade --> NetworkSender
+PhishingFacade --> LoggerSystem
+
+note left of PhishingFacade
+  Interfaz unificada para
+  el cliente
+end note
+@enduml
+```
 Flyweight
 Utiliza el compartimiento para soportar eficientemente grandes cantidades de objetos, extrayendo el estado común (intrínseco) en un solo objeto compartido para ahorrar memoria RAM, manteniendo separado solo el estado único (extrínseco).
 ```python
@@ -541,6 +690,33 @@ public class Main {
 }
 
 ```
+```plantuml
+@startuml
+class Client {
+}
+
+' Estado Intrínseco (Compartido)
+class PlantillaEmail {
+    - String html
+    + getHtml()
+}
+
+' Estado Extrínseco (Único)
+class Envio {
+    - String email
+    - PlantillaEmail plantilla
+    + Envio(email, plantilla)
+}
+
+Client --> Envio : crea miles
+Envio --> PlantillaEmail : comparte referencia
+
+note right of PlantillaEmail
+  Instancia única pesada
+  (ahorra RAM)
+end note
+@enduml
+```
 Proxy
 Proporciona un sustituto o marcador de posición para controlar el acceso a otro objeto, permitiendo realizar operaciones de seguridad, validación o carga diferida antes de permitir que la solicitud llegue al objeto real.
 ```python
@@ -596,6 +772,33 @@ public class Main {
     }
 }
 
+```
+```plantuml
+@startuml
+class Client {
+}
+
+interface DatabaseInterface {
+    + query(q, user)
+}
+
+class RealDatabase {
+    + query(q)
+}
+
+class SecurityProxy {
+    - RealDatabase realDb
+    + query(q, user)
+}
+
+Client -> SecurityProxy : solicita
+SecurityProxy --> RealDatabase : delega (si autorizado)
+
+note left of SecurityProxy
+  Intercepta la llamada
+  para verificar 'user'
+end note
+@enduml
 ```
 
 CATEGORIA: COMPORTAMIENTO
@@ -1208,6 +1411,7 @@ class CsvRowVisitor(Visitor):
 
 
 ```
+
 
 
 
